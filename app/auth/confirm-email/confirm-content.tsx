@@ -20,24 +20,24 @@ export default function ConfirmEmailContent() {
         if (error) {
           setStatus("error");
           setMessage("Failed to confirm email. Please try signing up again.");
-          setTimeout(() => router.push("/auth/signup"), 3000);
+          setTimeout(() => router.push("/"), 3000);
           return;
         }
 
         if (data.session) {
           setStatus("success");
           setMessage("Email confirmed! Redirecting to login...");
-          setTimeout(() => router.push("/auth/login"), 2000);
+          setTimeout(() => router.push("/"), 2000);
         } else {
           setStatus("error");
           setMessage("Email confirmation failed. Please try signing up again.");
-          setTimeout(() => router.push("/auth/signup"), 3000);
+          setTimeout(() => router.push("/"), 3000);
         }
       } catch (err) {
         console.error("Error confirming email:", err);
         setStatus("error");
         setMessage("An error occurred. Please try again.");
-        setTimeout(() => router.push("/auth/signup"), 3000);
+        setTimeout(() => router.push("/"), 3000);
       }
     };
 

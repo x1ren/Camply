@@ -1,37 +1,37 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { useAuth } from '@/hooks/useAuth'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ResetPasswordPage() {
-  const router = useRouter()
-  const { resetPassword, error, clearError, loading } = useAuth()
-  const [email, setEmail] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  const [localError, setLocalError] = useState<string | null>(null)
+  const router = useRouter();
+  const { resetPassword, error, clearError, loading } = useAuth();
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value)
+    setEmail(e.target.value);
     // Clear errors when user starts typing
-    setLocalError(null)
-    clearError()
-  }
+    setLocalError(null);
+    clearError();
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setLocalError(null)
+    e.preventDefault();
+    setLocalError(null);
 
     try {
-      await resetPassword(email)
-      setSubmitted(true)
+      await resetPassword(email);
+      setSubmitted(true);
     } catch (err: any) {
-      setLocalError(err.message || 'Password reset failed')
+      setLocalError(err.message || "Password reset failed");
     }
-  }
+  };
 
-  const displayError = localError || error?.message
+  const displayError = localError || error?.message;
 
   if (submitted) {
     return (
@@ -56,13 +56,15 @@ export default function ResetPasswordPage() {
                 </svg>
               </div>
 
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                Check your email
+              </h1>
               <p className="text-gray-600 mb-4">
                 We've sent a password reset link to <strong>{email}</strong>
               </p>
               <p className="text-gray-600 text-sm mb-6">
-                Click the link in the email to reset your password. If you don't see the email,
-                check your spam folder.
+                Click the link in the email to reset your password. If you don't
+                see the email, check your spam folder.
               </p>
 
               <Link
@@ -75,7 +77,7 @@ export default function ResetPasswordPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -101,7 +103,10 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Email Address
               </label>
               <input
@@ -126,19 +131,22 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="w-full py-2 px-4 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {loading ? 'Sending reset link...' : 'Send Reset Link'}
+              {loading ? "Sending reset link..." : "Send Reset Link"}
             </button>
           </form>
 
           {/* Back to Login Link */}
           <p className="mt-6 text-center text-gray-600">
-            Remember your password?{' '}
-            <Link href="/auth/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
+            Remember your password?{" "}
+            <Link
+              href="/"
+              className="text-indigo-600 hover:text-indigo-700 font-medium"
+            >
               Sign in
             </Link>
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

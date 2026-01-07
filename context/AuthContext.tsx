@@ -1,161 +1,183 @@
 "use client";
 
-/**
- * Auth Context
- * Provides global auth state and methods to the entire app
- */
-
-import { createContext, useCallback, useEffect, useState } from "react";
 import {
-  AuthContextType,
-  AuthError,
-  User,
-  Session,
-  AuthErrorCode,
-} from "@/types/auth";
+  createContext,
+  useCallback,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { AuthContextType, User, Session } from "@/types/auth";
 import {
   loginWithEmail,
   signUpWithEmail,
   logout,
   signInWithGoogle,
   requestPasswordReset,
-  getCurrentSession,
   getCurrentUser,
 } from "@/lib/authService";
-import { supabase } from "@/lib/supabaseClient";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<AuthError | null>(null);
+  const [error, setError] = useState<any>(null);
 
   // Initialize auth session on mount
   useEffect(() => {
+    let mounted = true;
+
     const initializeAuth = async () => {
       try {
-        setLoading(true);
+        // Add timeout to prevent hanging (getSession should be fast - reads from localStorage)
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Session check timeout")), 2000)
+        );
 
-        // Get current session
-        const currentSession = await getCurrentSession();
-        const currentUser = await getCurrentUser();
+        const {
+          data: { session: currentSession },
+        } = (await Promise.race([sessionPromise, timeoutPromise])) as any;
 
-        if (currentSession && currentUser) {
-          setUser(currentUser);
+        if (!mounted) return;
+
+        if (currentSession?.user) {
+          const userData: User = {
+            id: currentSession.user.id,
+            email: currentSession.user.email || "",
+            fullName: currentSession.user.user_metadata?.full_name || null,
+            avatar_url: currentSession.user.user_metadata?.avatar_url || null,
+            provider:
+              (currentSession.user.app_metadata?.provider as
+                | "email"
+                | "google") || "email",
+            createdAt: currentSession.user.created_at,
+            updatedAt:
+              currentSession.user.updated_at || new Date().toISOString(),
+            display_name: currentSession.user.user_metadata?.display_name || "",
+            bio: currentSession.user.user_metadata?.bio || "",
+            school: currentSession.user.user_metadata?.school || "",
+            program: currentSession.user.user_metadata?.program || "",
+            onboarding_completed:
+              currentSession.user.user_metadata?.onboarding_completed || false,
+          };
+
+          setUser(userData);
           setSession({
-            user: currentUser,
+            user: userData,
             accessToken: currentSession.access_token,
             refreshToken: currentSession.refresh_token || null,
             expiresAt: currentSession.expires_at || null,
           });
+
+          // Fetch updated DB user data in background (non-blocking)
+          getCurrentUser()
+            .then((dbUser) => {
+              if (mounted && dbUser) setUser(dbUser);
+            })
+            .catch((err) => {
+              // Silently fail - we already have user data from session
+              console.error("DB fetch error:", err);
+            });
         } else {
           setUser(null);
           setSession(null);
         }
       } catch (err) {
-        console.error("Error initializing auth:", err);
-        setUser(null);
-        setSession(null);
+        console.error("Auth init error:", err);
+        // On error, assume no session and continue
+        if (mounted) {
+          setUser(null);
+          setSession(null);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     initializeAuth();
-  }, []);
 
-  // Listen for auth state changes
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, authSession) => {
-      if (authSession?.user) {
-        const userData: User = {
-          id: authSession.user.id,
-          email: authSession.user.email || "",
-          fullName: authSession.user.user_metadata?.full_name || null,
-          avatar: authSession.user.user_metadata?.avatar_url || null,
-          provider:
-            (authSession.user.app_metadata?.provider as "email" | "google") ||
-            "email",
-          createdAt: authSession.user.created_at,
-          updatedAt: authSession.user.updated_at || new Date().toISOString(),
-        };
+    // Listen for auth state changes
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, authSession) => {
+        if (!mounted) return;
 
-        setUser(userData);
-        setSession({
-          user: userData,
-          accessToken: authSession.access_token,
-          refreshToken: authSession.refresh_token || null,
-          expiresAt: authSession.expires_at || null,
-        });
-      } else {
-        setUser(null);
-        setSession(null);
+        // Update state immediately without blocking
+        if (authSession?.user) {
+          const userData: User = {
+            id: authSession.user.id,
+            email: authSession.user.email || "",
+            fullName: authSession.user.user_metadata?.full_name || null,
+            avatar_url: authSession.user.user_metadata?.avatar_url || null,
+            provider:
+              (authSession.user.app_metadata?.provider as "email" | "google") ||
+              "email",
+            createdAt: authSession.user.created_at,
+            updatedAt: authSession.user.updated_at || new Date().toISOString(),
+            display_name: authSession.user.user_metadata?.display_name || "",
+            bio: authSession.user.user_metadata?.bio || "",
+            school: authSession.user.user_metadata?.school || "",
+            program: authSession.user.user_metadata?.program || "",
+            onboarding_completed:
+              authSession.user.user_metadata?.onboarding_completed || false,
+          };
+
+          setUser(userData);
+          setSession({
+            user: userData,
+            accessToken: authSession.access_token,
+            refreshToken: authSession.refresh_token || null,
+            expiresAt: authSession.expires_at || null,
+          });
+          setLoading(false);
+        } else {
+          setUser(null);
+          setSession(null);
+          setLoading(false);
+        }
       }
-    });
+    );
 
     return () => {
-      subscription?.unsubscribe();
+      mounted = false;
+      listener.subscription.unsubscribe();
     };
   }, []);
 
-  // Login with email and password
-  const handleLogin = useCallback(async (email: string, password: string) => {
+  // --- Auth actions ---
+
+  const login = useCallback(async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setError(null);
-      setLoading(true);
-
       const result = await loginWithEmail(email, password);
-
       setUser(result.user);
       setSession({
         user: result.user,
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
-        expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+        expiresAt: Date.now() + 60 * 60 * 1000,
       });
     } catch (err: any) {
-      const authError: AuthError = err.code
-        ? err
-        : {
-            code: AuthErrorCode.UNKNOWN_ERROR,
-            message: err.message || "An unknown error occurred",
-          };
-      setError(authError);
-      throw authError;
+      setError(err);
+      throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Sign up with email and password
-  const handleSignUp = useCallback(
+  const signUp = useCallback(
     async (email: string, password: string, fullName: string) => {
+      setLoading(true);
+      setError(null);
       try {
-        setError(null);
-        setLoading(true);
-
         await signUpWithEmail(email, password, fullName);
-
-        // Set a confirmation message - user needs to verify email
-        const confirmationError: AuthError = {
-          code: "CONFIRMATION_SENT" as any,
-          message: `A confirmation email has been sent to ${email}. Please check your inbox and click the confirmation link to activate your account.`,
-        };
-        setError(confirmationError);
-        throw confirmationError;
       } catch (err: any) {
-        const authError: AuthError = err.code
-          ? err
-          : {
-              code: AuthErrorCode.UNKNOWN_ERROR,
-              message: err.message || "An unknown error occurred",
-            };
-        setError(authError);
-        throw authError;
+        setError(err);
+        throw err;
       } finally {
         setLoading(false);
       }
@@ -163,87 +185,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  // Sign in with Google
-  const handleSignInWithGoogle = useCallback(async () => {
+  const signInWithGoogleHandler = useCallback(async () => {
+    setError(null);
     try {
-      setError(null);
-      setLoading(true);
       await signInWithGoogle();
     } catch (err: any) {
-      const authError: AuthError = err.code
-        ? err
-        : {
-            code: AuthErrorCode.UNKNOWN_ERROR,
-            message: err.message || "An unknown error occurred",
-          };
-      setError(authError);
-      throw authError;
-    } finally {
-      setLoading(false);
+      setError(err);
+      throw err;
     }
   }, []);
 
-  // Logout
-  const handleLogout = useCallback(async () => {
+  const logoutHandler = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setError(null);
-      setLoading(true);
-
       await logout();
-
       setUser(null);
       setSession(null);
     } catch (err: any) {
-      const authError: AuthError = err.code
-        ? err
-        : {
-            code: AuthErrorCode.UNKNOWN_ERROR,
-            message: err.message || "An unknown error occurred",
-          };
-      setError(authError);
-      throw authError;
+      setError(err);
+      throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Request password reset
-  const handleResetPassword = useCallback(async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setError(null);
-      setLoading(true);
-
       await requestPasswordReset(email);
     } catch (err: any) {
-      const authError: AuthError = err.code
-        ? err
-        : {
-            code: AuthErrorCode.UNKNOWN_ERROR,
-            message: err.message || "An unknown error occurred",
-          };
-      setError(authError);
-      throw authError;
+      setError(err);
+      throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Clear error
-  const handleClearError = useCallback(() => {
-    setError(null);
-  }, []);
+  const clearError = useCallback(() => setError(null), []);
 
+  // --- Context value ---
   const value: AuthContextType = {
     user,
     session,
     loading,
     error,
-    login: handleLogin,
-    signUp: handleSignUp,
-    logout: handleLogout,
-    signInWithGoogle: handleSignInWithGoogle,
-    resetPassword: handleResetPassword,
-    clearError: handleClearError,
+    login,
+    signUp,
+    logout: logoutHandler,
+    signInWithGoogle: signInWithGoogleHandler,
+    resetPassword,
+    clearError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

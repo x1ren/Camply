@@ -102,10 +102,16 @@ function mapSupabaseUserToUser(supabaseUser: any): User {
     id: supabaseUser.id,
     email: supabaseUser.email || "",
     fullName: supabaseUser.user_metadata?.full_name || null,
-    avatar: supabaseUser.user_metadata?.avatar_url || null,
     provider: supabaseUser.app_metadata?.provider || "email",
     createdAt: supabaseUser.created_at,
     updatedAt: supabaseUser.updated_at,
+    display_name: supabaseUser.user_metadata?.display_name || "",
+    bio: supabaseUser.user_metadata?.bio || "",
+    school: supabaseUser.user_metadata?.school || "",
+    program: supabaseUser.user_metadata?.program || "",
+    avatar_url: supabaseUser.user_metadata?.avatar_url || "",
+    onboarding_completed:
+      supabaseUser.user_metadata?.onboarding_completed || false,
   };
 }
 
@@ -269,16 +275,19 @@ export async function signInWithGoogle(): Promise<void> {
  */
 export async function logout(): Promise<void> {
   try {
+    // signOut() automatically clears the session from localStorage
     const { error } = await supabase.auth.signOut();
 
     if (error) {
       throw error;
     }
 
-    // Clear session from storage
+    // Additional cleanup (Supabase signOut should handle this, but being explicit)
     if (typeof window !== "undefined") {
-      sessionStorage.removeItem("sb-auth-session");
-      localStorage.removeItem("sb-auth-token");
+      // Clear any additional session storage if needed
+      sessionStorage.clear();
+      // Note: We don't clear all localStorage as Supabase manages its own keys
+      // The signOut() call above will clear the auth token from localStorage
     }
   } catch (error) {
     throw mapSupabaseError(error);

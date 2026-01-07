@@ -1,47 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // If user is authenticated, show dashboard/home
-  if (!loading && user) {
-    return (
-      <div className="min-h-screen bg-white">
-        <nav className="flex justify-between items-center px-6 py-4 border-b">
-          <h1 className="text-3xl font-bold">Camply</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-600">{user.email}</span>
-            <Link
-              href="/auth/logout"
-              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              Logout
-            </Link>
-          </div>
-        </nav>
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
-          <h2 className="text-4xl font-bold mb-4">
-            Welcome back, {user.email}!
-          </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            You're all set to use Camply
-          </p>
-          <Link
-            href="/dashboard"
-            className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            Go to Dashboard
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -75,7 +42,6 @@ export default function Home() {
               <button
                 onClick={() => {
                   setIsLogin(false);
-                  setIsModalOpen(true);
                 }}
                 className="px-6 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 transition-colors"
               >
@@ -84,7 +50,6 @@ export default function Home() {
               <button
                 onClick={() => {
                   setIsLogin(true);
-                  setIsModalOpen(true);
                 }}
                 className="px-6 py-3 border-2 border-gray-900 text-gray-900 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
               >
