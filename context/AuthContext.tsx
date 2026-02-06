@@ -35,16 +35,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Add timeout to prevent hanging (getSession should be fast - reads from localStorage)
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Session check timeout")), 2000)
+          setTimeout(() => reject(new Error("Session check timeout")), 3000)
         );
 
-        const {
-          data: { session: currentSession },
-        } = (await Promise.race([sessionPromise, timeoutPromise])) as any;
+        let currentSession;
+        try {
+          const result = await Promise.race([sessionPromise, timeoutPromise]);
+          currentSession = (result as any)?.data?.session;
+        } catch (timeoutError: any) {
+          // If timeout occurs, treat as no session (don't log as error)
+          if (timeoutError?.message === "Session check timeout") {
+            currentSession = null;
+          } else {
+            throw timeoutError;
+          }
+        }
 
         if (!mounted) return;
 
-        if (currentSession?.user) {
+        if (currentSession && currentSession.user) {
           const userData: User = {
             id: currentSession.user.id,
             email: currentSession.user.email || "",

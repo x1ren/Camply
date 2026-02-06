@@ -27,7 +27,7 @@ export default function ConfirmEmailContent() {
         if (data.session) {
           setStatus("success");
           setMessage("Email confirmed! Redirecting to login...");
-          setTimeout(() => router.push("/"), 2000);
+          setTimeout(() => router.push("/onboarding"), 2000);
         } else {
           setStatus("error");
           setMessage("Email confirmation failed. Please try signing up again.");

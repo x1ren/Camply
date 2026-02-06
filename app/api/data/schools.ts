@@ -1,0 +1,51 @@
+export const schools = [
+  {
+    id: 1,
+    name: "University of San Carlos",
+    type: "University",
+    district: "Talamban",
+    barangay: "Talamban",
+  },
+  {
+    id: 2,
+    name: "Cebu Institute of Technology - University",
+    type: "University",
+    district: "Mabolo",
+    barangay: "Mabolo",
+  },
+  {
+    id: 3,
+    name: "University of Cebu - Banilad",
+    type: "University",
+    district: "Banilad",
+    barangay: "Banilad",
+  },
+  {
+    id: 4,
+    name: "Cebu Normal University",
+    type: "University",
+    district: "Capitol",
+    barangay: "Capitol Site",
+  },
+  {
+    id: 5,
+    name: "Abellana National School",
+    type: "Public",
+    district: "Osmeña Blvd",
+    barangay: "Tinago",
+  },
+  {
+    id: 6,
+    name: "Cebu City National Science High School",
+    type: "Public",
+    district: "Labangon",
+    barangay: "Labangon",
+  },
+  {
+    id: 7,
+    name: "Sacred Heart School - Ateneo de Cebu",
+    type: "Private",
+    district: "Talamban",
+    barangay: "Canduman",
+  },
+];

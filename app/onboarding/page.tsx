@@ -103,9 +103,7 @@ export default function OnboardingPage() {
     setUniversitiesLoading(true);
     try {
       const response = await fetch(
-        `http://universities.hipolabs.com/search?name=${encodeURIComponent(
-          query
-        )}`
+        `/api/schools?name=${encodeURIComponent(query)}`,
       );
       const data = await response.json();
       setUniversities(data.slice(0, 10));
@@ -147,7 +145,7 @@ export default function OnboardingPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -165,7 +163,7 @@ export default function OnboardingPage() {
   };
 
   const handleProfilePictureChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
     if (file) {

@@ -10,7 +10,27 @@ export default function Home() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(false);
 
+  // Redirect authenticated users based on onboarding status
+  useEffect(() => {
+    if (!loading && user) {
+      if (user.onboarding_completed) {
+        router.push("/home");
+      } else {
+        router.push("/onboarding");
+      }
+    }
+  }, [user, loading, router]);
+
   if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  // Don't render the login form if user is authenticated (will be redirected)
+  if (user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
@@ -134,7 +154,7 @@ function AuthForm({ isLogin, setIsLogin }: AuthFormProps) {
         await signUp(
           formData.email,
           formData.password,
-          formData.email.split("@")[0]
+          formData.email.split("@")[0],
         );
       }
     } catch (err: any) {
@@ -265,8 +285,8 @@ function AuthForm({ isLogin, setIsLogin }: AuthFormProps) {
               ? "Logging in..."
               : "Creating account..."
             : isLogin
-            ? "Log In"
-            : "Register Now"}
+              ? "Log In"
+              : "Register Now"}
         </button>
       </form>
 
