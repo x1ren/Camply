@@ -15,8 +15,8 @@ import {
   logout,
   signInWithGoogle,
   requestPasswordReset,
-  getCurrentUser,
 } from "@/lib/authService";
+import { getUserProfile } from "@/lib/onboardingService";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Add timeout to prevent hanging (getSession should be fast - reads from localStorage)
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Session check timeout")), 3000)
+          setTimeout(() => reject(new Error("Session check timeout")), 3000),
         );
 
         let currentSession;
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
 
           // Fetch updated DB user data in background (non-blocking)
-          getCurrentUser()
+          getUserProfile(userData.id)
             .then((dbUser) => {
               if (mounted && dbUser) setUser(dbUser);
             })
@@ -142,12 +142,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             expiresAt: authSession.expires_at || null,
           });
           setLoading(false);
+
+          // Fetch updated DB user data in background (non-blocking)
+          getUserProfile(userData.id)
+            .then((dbUser) => {
+              if (mounted && dbUser) setUser(dbUser);
+            })
+            .catch((err) => {
+              // Silently fail - we already have user data from session
+              console.error("DB fetch error:", err);
+            });
         } else {
           setUser(null);
           setSession(null);
           setLoading(false);
         }
-      }
+      },
     );
 
     return () => {
@@ -191,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   const signInWithGoogleHandler = useCallback(async () => {
