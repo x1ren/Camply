@@ -81,7 +81,7 @@ export async function verifyUserSession(): Promise<User | null> {
  * Use this in API handlers to get the authenticated user
  */
 export async function getCurrentUserFromRequest(
-  request: Request
+  request: Request,
 ): Promise<User | null> {
   try {
     const authHeader = request.headers.get("Authorization");

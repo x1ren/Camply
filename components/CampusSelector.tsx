@@ -37,8 +37,7 @@ export default function CampusSelector() {
     setSelectedCampus(campus);
     setShowDropdown(false);
     setSearchQuery("");
-    // Refresh the page to show new campus products
-    window.location.reload();
+    // No reload needed - React will handle the state change
   };
 
   const handleResetToMyCampus = () => {
@@ -46,7 +45,7 @@ export default function CampusSelector() {
       setSelectedCampus(user.school);
       setShowDropdown(false);
       setSearchQuery("");
-      window.location.reload();
+      // No reload needed - React will handle the state change
     }
   };
 

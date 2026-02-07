@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 interface ProductCardProps {
   id: string;
   name: string;
@@ -13,7 +15,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({
-  id: _id,
+  id,
   name,
   price,
   image,
@@ -23,12 +25,20 @@ export default function ProductCard({
   sellingFast = false,
   verifiedSeller = true,
 }: ProductCardProps) {
+  const router = useRouter();
   const displayPrice = discount
     ? ((price * (100 - discount)) / 100).toFixed(2)
     : price.toFixed(2);
 
+  const handleClick = () => {
+    router.push(`/product/${id}`);
+  };
+
   return (
-    <div className="flex-shrink-0 w-40 sm:w-48 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+    <div 
+      onClick={handleClick}
+      className="flex-shrink-0 w-40 sm:w-48 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+    >
       {/* Image Container */}
       <div className="relative w-full h-40 sm:h-48 bg-gray-100">
         {image ? (

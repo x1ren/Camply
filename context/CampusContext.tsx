@@ -5,6 +5,8 @@ import {
   useContext,
   useState,
   useEffect,
+  useMemo,
+  useRef,
   ReactNode,
 } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,44 +35,61 @@ const POPULAR_CAMPUSES = [
 
 export function CampusProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [selectedCampus, setSelectedCampusState] = useState<string>("");
+  const userSchoolRef = useRef<string | undefined>(undefined);
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Always initialize with default value for SSR consistency
+  const [selectedCampus, setSelectedCampusState] = useState<string>(
+    "Cebu Institute of Technology – University"
+  );
 
-  // Initialize from localStorage or user's school
+  // Hydrate from localStorage after mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedCampus = localStorage.getItem("selectedCampus");
-      if (savedCampus) {
-        setSelectedCampusState(savedCampus);
-      } else if (user?.school) {
-        setSelectedCampusState(user.school);
-        localStorage.setItem("selectedCampus", user.school);
-      } else {
-        // Set default campus if no saved campus and no user school
-        const defaultCampus = "Cebu Institute of Technology – University";
-        setSelectedCampusState(defaultCampus);
-        localStorage.setItem("selectedCampus", defaultCampus);
-      }
+    const savedCampus = localStorage.getItem("selectedCampus");
+    if (savedCampus) {
+      setSelectedCampusState(savedCampus);
+    }
+    setIsHydrated(true);
+  }, []);
+
+  // Track user school to detect changes
+  useEffect(() => {
+    if (user?.school) {
+      userSchoolRef.current = user.school;
     }
   }, [user?.school]);
 
+  // Set user's school as default if no saved campus (only once)
+  useEffect(() => {
+    if (!isHydrated) return;
+    
+    const savedCampus = localStorage.getItem("selectedCampus");
+    
+    // Only set user's school if there's no saved campus
+    if (!savedCampus && user?.school && selectedCampus !== user.school) {
+      console.log("Setting user school as default:", user.school);
+      setSelectedCampusState(user.school);
+      localStorage.setItem("selectedCampus", user.school);
+    }
+  }, [user?.school, isHydrated, selectedCampus]); // Run when user.school becomes available
+
   const setSelectedCampus = (campus: string) => {
     setSelectedCampusState(campus);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("selectedCampus", campus);
-    }
+    localStorage.setItem("selectedCampus", campus);
   };
 
-  const isBrowsingOtherCampus = user?.school && selectedCampus !== user.school;
+  // Memoize isBrowsingOtherCampus using ref to prevent flickering from user changes
+  const isBrowsingOtherCampus = useMemo(() => {
+    const userSchool = userSchoolRef.current;
+    return !!(userSchool && selectedCampus && selectedCampus !== userSchool);
+  }, [selectedCampus]);
 
   return (
     <CampusContext.Provider
       value={{
-        selectedCampus:
-          selectedCampus ||
-          user?.school ||
-          "Cebu Institute of Technology – University",
+        selectedCampus,
         setSelectedCampus,
-        isBrowsingOtherCampus: !!isBrowsingOtherCampus,
+        isBrowsingOtherCampus,
       }}
     >
       {children}

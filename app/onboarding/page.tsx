@@ -10,7 +10,9 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 interface University {
   name: string;
-  country: string;
+  type: string;
+  district: string;
+  barangay: string;
 }
 
 interface FormData {
@@ -123,7 +125,7 @@ export default function OnboardingPage() {
   const selectUniversity = (university: University) => {
     setFormData((prev) => ({
       ...prev,
-      school: `${university.name}, ${university.country}`,
+      school: university.name,
     }));
     setUniversitySearchInput("");
     setShowUniversityDropdown(false);
@@ -490,7 +492,7 @@ export default function OnboardingPage() {
                                 {uni.name}
                               </div>
                               <div className="text-sm text-slate-500">
-                                {uni.country}
+                                {uni.district}, {uni.barangay}
                               </div>
                             </button>
                           ))}

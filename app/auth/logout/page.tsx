@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function LogoutPage() {
   const router = useRouter();
-  const { logout, loading } = useAuth();
+  const { logout } = useAuth();
 
   useEffect(() => {
     const handleLogout = async () => {

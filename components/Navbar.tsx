@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
 import MessagesModal from "./MessagesModal";
 import CampusSelector from "./CampusSelector";
+import { AuthModal } from "./AuthModal";
 
 interface NavbarProps {
   cartItemCount?: number;
@@ -14,7 +15,75 @@ export default function Navbar({ cartItemCount = 0 }: NavbarProps) {
   const { user, logout } = useAuth();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalIsLogin, setAuthModalIsLogin] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const cachedUserDataRef = useRef<{
+    initials: string;
+    avatarUrl: string | null;
+    displayName: string;
+  } | null>(null);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setMounted(true);
+    // Load cache after mount
+    const cached = localStorage.getItem('camply_navbar_cache');
+    if (cached) {
+      try {
+        cachedUserDataRef.current = JSON.parse(cached);
+      } catch {
+        cachedUserDataRef.current = null;
+      }
+    }
+  }, []);
+
+  // Memoize user display data to prevent flickering
+  const userDisplayData = useMemo(() => {
+    if (!user) return cachedUserDataRef.current;
+    
+    const initials = user.display_name
+      ? user.display_name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+      : user.email?.[0].toUpperCase() || "U";
+    
+    const displayData = {
+      initials,
+      avatarUrl: user.avatar_url,
+      displayName: user.display_name,
+    };
+    
+    // Only update cache if data actually changed
+    const hasChanged = !cachedUserDataRef.current || 
+      cachedUserDataRef.current.initials !== displayData.initials ||
+      cachedUserDataRef.current.avatarUrl !== displayData.avatarUrl ||
+      cachedUserDataRef.current.displayName !== displayData.displayName;
+    
+    if (hasChanged) {
+      cachedUserDataRef.current = displayData;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('camply_navbar_cache', JSON.stringify(displayData));
+      }
+    }
+    
+    return displayData;
+  }, [user?.display_name, user?.avatar_url, user?.email]);
+  
+  // Clear cache on logout
+  useEffect(() => {
+    if (!user && cachedUserDataRef.current) {
+      cachedUserDataRef.current = null;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('camply_navbar_cache');
+      }
+    }
+  }, [user]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -31,14 +100,11 @@ export default function Navbar({ cartItemCount = 0 }: NavbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const userInitials = user?.display_name
-    ? user.display_name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : user?.email?.[0].toUpperCase() || "U";
+  const handleAuthClick = (isLogin: boolean) => {
+    setAuthModalIsLogin(isLogin);
+    setShowAuthModal(true);
+    setShowUserDropdown(false);
+  };
 
   return (
     <>
@@ -146,15 +212,36 @@ export default function Navbar({ cartItemCount = 0 }: NavbarProps) {
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
                   className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  {user?.avatar_url ? (
-                    <img
-                      src={user.avatar_url}
-                      alt={user.display_name || "User"}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
+                  {mounted && userDisplayData ? (
+                    <>
+                      {userDisplayData.avatarUrl ? (
+                        <img
+                          src={userDisplayData.avatarUrl}
+                          alt={userDisplayData.displayName || "User"}
+                          className="w-8 h-8 rounded-full object-cover"
+                          loading="eager"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center">
+                          {userDisplayData.initials}
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 text-white text-sm font-semibold flex items-center justify-center">
-                      {userInitials}
+                    <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-600 text-sm font-semibold flex items-center justify-center">
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
                     </div>
                   )}
                   <svg
@@ -177,41 +264,60 @@ export default function Navbar({ cartItemCount = 0 }: NavbarProps) {
                 {/* Dropdown Menu */}
                 {showUserDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      My Profile
-                    </Link>
-                    <Link
-                      href="/sell"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Sell Item
-                    </Link>
-                    <Link
-                      href="/my-listings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      My Listings
-                    </Link>
-                    <hr className="my-1 border-gray-200" />
-                    <Link
-                      href="/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Settings
-                    </Link>
-                    <button
-                      onClick={async () => {
-                        setShowUserDropdown(false);
-                        await logout();
-                        window.location.href = "/";
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Sign Out
-                    </button>
+                    {user ? (
+                      <>
+                        <Link
+                          href="/profile"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          My Profile
+                        </Link>
+                        <Link
+                          href="/sell"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Sell Item
+                        </Link>
+                        <Link
+                          href="/my-listings"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          My Listings
+                        </Link>
+                        <hr className="my-1 border-gray-200" />
+                        <Link
+                          href="/settings"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Settings
+                        </Link>
+                        <button
+                          onClick={async () => {
+                            setShowUserDropdown(false);
+                            await logout();
+                            window.location.href = "/";
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Sign Out
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleAuthClick(true)}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Log In
+                        </button>
+                        <button
+                          onClick={() => handleAuthClick(false)}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Sign Up
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -247,6 +353,11 @@ export default function Navbar({ cartItemCount = 0 }: NavbarProps) {
       <MessagesModal
         isOpen={showMessagesModal}
         onClose={() => setShowMessagesModal(false)}
+      />
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        initialIsLogin={authModalIsLogin}
       />
     </>
   );

@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
   const { resetPassword, error, clearError, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);

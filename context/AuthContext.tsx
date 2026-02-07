@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useMemo,
   ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -21,10 +22,32 @@ import { getUserProfile } from "@/lib/onboardingService";
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('camply_user_cache');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
+
+  // Sync user to localStorage whenever it changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('camply_user_cache', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('camply_user_cache');
+    }
+  }, [user]);
 
   // Initialize auth session on mount
   useEffect(() => {
@@ -134,7 +157,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               authSession.user.user_metadata?.onboarding_completed || false,
           };
 
-          setUser(userData);
+          // Only update if user data has actually changed
+          setUser((prevUser) => {
+            if (!prevUser || prevUser.id !== userData.id ||
+                prevUser.email !== userData.email ||
+                prevUser.display_name !== userData.display_name ||
+                prevUser.avatar_url !== userData.avatar_url) {
+              return userData;
+            }
+            return prevUser;
+          });
+          
           setSession({
             user: userData,
             accessToken: authSession.access_token,
@@ -146,17 +179,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Fetch updated DB user data in background (non-blocking)
           getUserProfile(userData.id)
             .then((dbUser) => {
-              if (mounted && dbUser) setUser(dbUser);
+              if (mounted && dbUser) {
+                setUser((prevUser) => {
+                  // Only update if DB data is different
+                  if (!prevUser || JSON.stringify(prevUser) !== JSON.stringify(dbUser)) {
+                    return dbUser;
+                  }
+                  return prevUser;
+                });
+              }
             })
             .catch((err) => {
               // Silently fail - we already have user data from session
               console.error("DB fetch error:", err);
             });
-        } else {
+        } else if (_event === 'SIGNED_OUT') {
+          // Only clear user on explicit sign out
           setUser(null);
           setSession(null);
           setLoading(false);
         }
+        // Ignore other events that might temporarily have no session
       },
     );
 
@@ -245,18 +288,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearError = useCallback(() => setError(null), []);
 
   // --- Context value ---
-  const value: AuthContextType = {
-    user,
-    session,
-    loading,
-    error,
-    login,
-    signUp,
-    logout: logoutHandler,
-    signInWithGoogle: signInWithGoogleHandler,
-    resetPassword,
-    clearError,
-  };
+  const value: AuthContextType = useMemo(
+    () => ({
+      user,
+      session,
+      loading,
+      error,
+      login,
+      signUp,
+      logout: logoutHandler,
+      signInWithGoogle: signInWithGoogleHandler,
+      resetPassword,
+      clearError,
+    }),
+    [user, session, loading, error, login, signUp, logoutHandler, signInWithGoogleHandler, resetPassword, clearError]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

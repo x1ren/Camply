@@ -8,14 +8,14 @@ export const schools = [
   },
   {
     id: 2,
-    name: "Cebu Institute of Technology - University",
+    name: "Cebu Institute of Technology – University",
     type: "University",
-    district: "Mabolo",
-    barangay: "Mabolo",
+    district: "Cebu City",
+    barangay: "Labangon",
   },
   {
     id: 3,
-    name: "University of Cebu - Banilad",
+    name: "University of Cebu",
     type: "University",
     district: "Banilad",
     barangay: "Banilad",
